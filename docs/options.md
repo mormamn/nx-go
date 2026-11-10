@@ -30,6 +30,14 @@ Here is an example:
 
 - (string): Common Go module path prefix (e.g. `github.com/org/repo`) used when generating `go.mod` files for new libraries/applications in a Go workspace. If not set, nx-go tries to auto-detect it from sibling projects' existing `go.mod` files.
 
+### projectGranularity
+
+- (`module` | `package`): Defines what a Nx project is. With `module`, each `go.mod` file is a project. With `package`, each Go package of a module is a project, named after its path (e.g. `libs/utils`). Use it when the workspace is one Go module made of many packages. Default is `module`.
+
+### skipTestDependencies
+
+- (boolean): if true, imports of test files (`_test.go`) do not create dependencies between projects. Default is `false`.
+
 ### buildTargetName
 
 - (string): Custom target name for the build target. Default is `build`.

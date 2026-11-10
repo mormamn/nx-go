@@ -15,6 +15,18 @@ export interface NxGoPluginOptions {
    */
   modulePrefix?: string;
   /**
+   * Defines what a Nx project is: a Go module (`module`)
+   * or a Go package (`package`), for modules made of many packages.
+   * Default is 'module'.
+   */
+  projectGranularity?: 'module' | 'package';
+  /**
+   * If true, imports of test files (`_test.go`)
+   * do not create dependencies between projects.
+   * Default is false.
+   */
+  skipTestDependencies?: boolean;
+  /**
    * Custom target name for the build target.
    * Default is 'build'.
    */
@@ -56,5 +68,8 @@ export interface NxGoPluginOptions {
  * All normalized options for the Graph system.
  */
 export type NxGoPluginNodeOptions = Required<
-  Omit<NxGoPluginOptions, 'skipGoDependencyCheck' | 'modulePrefix'>
+  Omit<
+    NxGoPluginOptions,
+    'skipGoDependencyCheck' | 'modulePrefix' | 'skipTestDependencies'
+  >
 >;

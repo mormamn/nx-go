@@ -16,3 +16,11 @@ export const GO_PROJECT_INPUTS = [
   '{workspaceRoot}/go.work',
   '{workspaceRoot}/go.work.sum',
 ];
+
+/**
+ * Same as GO_PROJECT_INPUTS, for projects made of a single Go package.
+ * Go files of nested packages belong to other projects.
+ */
+export const GO_PACKAGE_INPUTS = GO_PROJECT_INPUTS.map((input) =>
+  input === '{projectRoot}/**/*.go' ? '{projectRoot}/*.go' : input,
+);

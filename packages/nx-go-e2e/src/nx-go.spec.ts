@@ -391,6 +391,60 @@ describe('nx-go', () => {
     });
   });
 
+  describe('Graph options', () => {
+    const setPluginOptions = (options?: object) => {
+      const nxJson = readJson('nx.json');
+      nxJson.plugins = (nxJson.plugins || []).map(
+        (plugin: string | { plugin: string; options?: object }) => {
+          const pluginName =
+            typeof plugin === 'string' ? plugin : plugin.plugin;
+          if (pluginName !== '@nx-go/nx-go') {
+            return plugin;
+          }
+          return options ? { plugin: pluginName, options } : pluginName;
+        }
+      );
+      updateFile('nx.json', JSON.stringify(nxJson, null, 2));
+    };
+
+    afterEach(() => setPluginOptions(undefined));
+
+    it('should create a project per Go package', async () => {
+      updateFile(`${libName}/sub/sub.go`, `package sub`);
+      setPluginOptions({ projectGranularity: 'package' });
+
+      const result = await runNxCommandAsync('show projects --json');
+
+      expect(JSON.parse(result.stdout)).toEqual(
+        expect.arrayContaining([libName, `${libName}/sub`])
+      );
+    });
+
+    it('should not create dependencies from test files', async () => {
+      const testedLib = uniq('lib');
+      await runNxCommandAsync(`generate @nx-go/nx-go:library ${testedLib}`);
+      updateFile(
+        `${testedLib}/import_test.go`,
+        `package ${testedLib}_test
+
+        import (
+          _ "${libName}"
+        )`
+      );
+
+      await runNxCommandAsync('dep-graph --file=graph.json');
+      expect(readJson('graph.json').graph.dependencies[testedLib].length).toBe(
+        1
+      );
+
+      setPluginOptions({ skipTestDependencies: true });
+      await runNxCommandAsync('dep-graph --file=graph.json');
+      expect(readJson('graph.json').graph.dependencies[testedLib].length).toBe(
+        0
+      );
+    });
+  });
+
   describe('convert-to-inferred', () => {
     it('should convert explicit targets to inferred targets', async () => {
       const explicitApp = uniq('app');

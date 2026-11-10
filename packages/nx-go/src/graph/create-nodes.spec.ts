@@ -2,12 +2,15 @@ import { CreateNodesContext } from '@nx/devkit';
 import { existsSync } from 'node:fs';
 import { shouldCreateAirTarget, shouldUseReviveLinter } from '../utils';
 import { createNodes } from './create-nodes';
+import { findGoPackages } from './create-nodes/find-go-packages';
 import { hasMainPackage } from './create-nodes/has-main-package';
 
+jest.mock('./create-nodes/find-go-packages');
 jest.mock('./create-nodes/has-main-package');
 jest.mock('../utils');
 jest.mock('node:fs');
 
+const mockedFindGoPackages = jest.mocked(findGoPackages);
 const mockedHasMainPackage = jest.mocked(hasMainPackage);
 const mockedShouldCreateAirTarget = jest.mocked(shouldCreateAirTarget);
 const mockedShouldUseReviveLinter = jest.mocked(shouldUseReviveLinter);
@@ -174,6 +177,88 @@ describe('Create nodes', () => {
       const result = await createNodes[1](['apps/api/go.mod'], {}, context);
 
       expect(result[0][1].projects?.['apps/api'].name).toBe('api');
+    });
+
+    describe('Project granularity', () => {
+      it('should create one project per go.mod file by default', async () => {
+        mockedHasMainPackage.mockReturnValue(false);
+
+        const result = await createNodes[1](['libs/utils/go.mod'], {}, context);
+
+        expect(mockedFindGoPackages).not.toHaveBeenCalled();
+        expect(Object.keys(result[0][1].projects ?? {})).toEqual([
+          'libs/utils',
+        ]);
+      });
+
+      it('should create one project per Go package', async () => {
+        mockedExistsSync.mockReturnValue(false);
+        mockedHasMainPackage.mockImplementation(
+          (_, projectRoot) => projectRoot === 'apps/api',
+        );
+        mockedFindGoPackages.mockReturnValue(['apps/api', 'libs/a', 'libs/b']);
+
+        const result = await createNodes[1](
+          ['./go.mod'],
+          { projectGranularity: 'package' },
+          context,
+        );
+
+        expect(mockedFindGoPackages).toHaveBeenCalledWith('/workspace', '.');
+        expect(result).toMatchObject([
+          [
+            './go.mod',
+            {
+              projects: {
+                'apps/api': {
+                  name: 'apps/api',
+                  root: 'apps/api',
+                  projectType: 'application',
+                },
+                'libs/a': {
+                  name: 'libs/a',
+                  root: 'libs/a',
+                  projectType: 'library',
+                },
+                'libs/b': {
+                  name: 'libs/b',
+                  root: 'libs/b',
+                  projectType: 'library',
+                },
+              },
+            },
+          ],
+        ]);
+      });
+
+      it('should not include Go files of nested packages in inputs', async () => {
+        mockedHasMainPackage.mockReturnValue(false);
+        mockedFindGoPackages.mockReturnValue(['libs/a', 'libs/a/internal']);
+
+        const result = await createNodes[1](
+          ['./go.mod'],
+          { projectGranularity: 'package' },
+          context,
+        );
+
+        const targets = result[0][1].projects?.['libs/a'].targets;
+        expect(targets).toBeDefined();
+        expect(targets!['test']?.inputs).toContain('{projectRoot}/*.go');
+        expect(targets!['test']?.inputs).not.toContain('{projectRoot}/**/*.go');
+      });
+
+      it('should not create project for workspace root package without project.json', async () => {
+        mockedExistsSync.mockReturnValue(false);
+        mockedFindGoPackages.mockReturnValue(['.', 'libs/a']);
+
+        const result = await createNodes[1](
+          ['./go.mod'],
+          { projectGranularity: 'package' },
+          context,
+        );
+
+        expect(Object.keys(result[0][1].projects ?? {})).toEqual(['libs/a']);
+      });
     });
 
     describe('Air target', () => {

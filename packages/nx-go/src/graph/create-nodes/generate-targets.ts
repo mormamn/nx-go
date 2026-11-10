@@ -1,6 +1,7 @@
 import type { TargetConfiguration } from '@nx/devkit';
 import {
   GO_MOD_FILE,
+  GO_PACKAGE_INPUTS,
   GO_PROJECT_INPUTS,
   NX_PLUGIN_NAME,
 } from '../../constants';
@@ -33,13 +34,17 @@ export const generateTargets = (
   detectedTools: DetectedTools = {}
 ): Record<string, TargetConfiguration> => {
   const targets: Record<string, TargetConfiguration> = {};
+  const inputs =
+    options.projectGranularity === 'package'
+      ? GO_PACKAGE_INPUTS
+      : GO_PROJECT_INPUTS;
 
   // Build and Serve targets - only for applications
   if (isApplication) {
     targets[options.buildTargetName] = {
       executor: `${NX_PLUGIN_NAME}:build`,
       cache: true,
-      inputs: GO_PROJECT_INPUTS,
+      inputs,
       outputs: ['{workspaceRoot}/dist/{projectRoot}*'],
       metadata: {
         technologies: ['go'],
@@ -84,7 +89,7 @@ export const generateTargets = (
   targets[options.testTargetName] = {
     executor: `${NX_PLUGIN_NAME}:test`,
     cache: true,
-    inputs: GO_PROJECT_INPUTS,
+    inputs,
     // Note: test target intentionally has no outputs as test execution doesn't produce cacheable artifacts
     metadata: {
       technologies: ['go'],
@@ -100,8 +105,8 @@ export const generateTargets = (
     executor: `${NX_PLUGIN_NAME}:lint`,
     cache: true,
     inputs: detectedTools.revive
-      ? [...GO_PROJECT_INPUTS, ...REVIVE_INPUTS]
-      : GO_PROJECT_INPUTS,
+      ? [...inputs, ...REVIVE_INPUTS]
+      : inputs,
     ...(detectedTools.revive ? { options: { linter: 'revive' } } : {}),
     metadata: {
       technologies: ['go'],
@@ -116,7 +121,7 @@ export const generateTargets = (
   targets[options.tidyTargetName] = {
     executor: `${NX_PLUGIN_NAME}:tidy`,
     cache: true,
-    inputs: GO_PROJECT_INPUTS,
+    inputs,
     outputs: [`{projectRoot}/${GO_MOD_FILE}`, '{projectRoot}/go.sum'],
     metadata: {
       technologies: ['go'],
@@ -131,7 +136,7 @@ export const generateTargets = (
   targets[options.generateTargetName] = {
     executor: `${NX_PLUGIN_NAME}:generate`,
     cache: true,
-    inputs: GO_PROJECT_INPUTS,
+    inputs,
     metadata: {
       technologies: ['go'],
       description: 'Generates Go source code files',

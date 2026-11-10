@@ -5,6 +5,7 @@ import { generateTargets } from './generate-targets';
 
 describe('generateTargets', () => {
   const mockOptions: NxGoPluginNodeOptions = {
+    projectGranularity: 'module',
     buildTargetName: 'build',
     serveTargetName: 'serve',
     serveAirTargetName: 'serve:air',
